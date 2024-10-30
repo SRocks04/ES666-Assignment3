@@ -71,6 +71,7 @@ class PanaromaStitcher():
         self.trials = 3000
         self.offset = [2300, 800]
         Hom = np.eye(3)
+        print(-1)
         b = ImageBlenderWithPyramids()
         # Return Final panaroma
         stitched_image = cv2.imread(self.all_images[0])
