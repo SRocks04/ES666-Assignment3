@@ -3,7 +3,7 @@ import numpy as np
 import glob
 import cv2
 import os
-from src.JohnDoe.some_function import blendImages,detectFeaturesAndMatch,warpAndPlaceSourceImage
+from src.JohnDoe.some_function import *
 
 def Homography_opencv(correspondences, trials=1000, threshold=10, num_samples=4):
     srcPoints = np.float32([point[0] for point in correspondences])
@@ -71,6 +71,7 @@ class PanaromaStitcher():
         self.trials = 3000
         self.offset = [2300, 800]
         Hom = np.eye(3)
+        b = ImageBlenderWithPyramids()
         # Return Final panaroma
         stitched_image = cv2.imread(self.all_images[0])
         stitched_image, Hom = self.stitch_and_save_images_opencv(1, 0, Hom)
@@ -78,13 +79,13 @@ class PanaromaStitcher():
         for i in range(2,len(self.all_images)-1):
             warp,Hom=self.stitch_and_save_images_opencv(i, i-1, Hom)
             homography_matrix_list.append(Hom)
-            stitched_image = blendImages(stitched_image, warp)
+            stitched_image = b.blendImages(stitched_image, warp)
         Hom = np.eye(3)
         warp,Hom=self.stitch_and_save_images_opencv(-2, -2, Hom)
-        stitched_image = blendImages(stitched_image, warp)
+        stitched_image = b.blendImages(stitched_image, warp)
         homography_matrix_list.append(Hom)
         warp,Hom=self.stitch_and_save_images_opencv(-2, -1, Hom)
-        stitched_image = blendImages(stitched_image, warp)
+        stitched_image = b.blendImages(stitched_image, warp)
         homography_matrix_list.append(Hom)
         #####
         return stitched_image, homography_matrix_list 

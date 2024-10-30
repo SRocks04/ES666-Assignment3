@@ -36,84 +36,94 @@ def detectFeaturesAndMatch(image1, image2, maxNumOfFeatures=30):
 
     return np.array(featureCorrespondences[:maxNumOfFeatures]), sourcePoints, destinationPoints
 
-pyramid_depth = 6
+class ImageBlenderWithPyramids():
+    '''
+    Class for blending images using Gaussian and Laplacian pyramids.
+    It is specialized for the 'STRAIGHTCUT' blending strategy.
+    '''
 
-def getGaussianPyramid( image):
-    '''
-    Generate a Gaussian pyramid for a given image.
-    '''
-    pyramid = [image]
-    for _ in range(pyramid_depth - 1):
-        image = cv2.pyrDown(image)
+    def __init__(self, pyramid_depth=6):
+        '''
+        Initialize with the depth of the pyramids.
+        '''
+        self.pyramid_depth = pyramid_depth
+
+    def getGaussianPyramid(self, image):
+        '''
+        Generate a Gaussian pyramid for a given image.
+        '''
+        pyramid = [image]
+        for _ in range(self.pyramid_depth - 1):
+            image = cv2.pyrDown(image)
+            pyramid.append(image)
+        return pyramid
+
+    def getLaplacianPyramid(self, image):
+        '''
+        Generate a Laplacian pyramid for a given image.
+        '''
+        pyramid = []
+        for _ in range(self.pyramid_depth - 1):
+            next_level_image = cv2.pyrDown(image)
+            upsampled_image = cv2.pyrUp(next_level_image, dstsize=(image.shape[1], image.shape[0]))
+            pyramid.append(image.astype(float) - upsampled_image.astype(float))
+            image = next_level_image
         pyramid.append(image)
-    return pyramid
+        return pyramid
 
-def getLaplacianPyramid( image):
-    '''
-    Generate a Laplacian pyramid for a given image.
-    '''
-    pyramid = []
-    for _ in range(pyramid_depth - 1):
-        next_level_image = cv2.pyrDown(image)
-        upsampled_image = cv2.pyrUp(next_level_image, dstsize=(image.shape[1], image.shape[0]))
-        pyramid.append(image.astype(float) - upsampled_image.astype(float))
-        image = next_level_image
-    pyramid.append(image)
-    return pyramid
+    def getBlendingPyramid(self, laplacian_a, laplacian_b, gaussian_mask_pyramid):
+        '''
+        Create a blended Laplacian pyramid using two Laplacian pyramids and a Gaussian pyramid as mask.
+        '''
+        blended_pyramid = []
+        for i, mask in enumerate(gaussian_mask_pyramid):
+            triplet_mask = cv2.merge((mask, mask, mask))
+            blended_pyramid.append(laplacian_a[i] * triplet_mask + laplacian_b[i] * (1 - triplet_mask))
+        return blended_pyramid
 
-def getBlendingPyramid( laplacian_a, laplacian_b, gaussian_mask_pyramid):
-    '''
-    Create a blended Laplacian pyramid using two Laplacian pyramids and a Gaussian pyramid as mask.
-    '''
-    blended_pyramid = []
-    for i, mask in enumerate(gaussian_mask_pyramid):
-        triplet_mask = cv2.merge((mask, mask, mask))
-        blended_pyramid.append(laplacian_a[i] * triplet_mask + laplacian_b[i] * (1 - triplet_mask))
-    return blended_pyramid
+    def reconstructFromPyramid(self, laplacian_pyramid):
+        '''
+        Reconstruct an image from its Laplacian pyramid.
+        '''
+        reconstructed_image = laplacian_pyramid[-1]
+        for laplacian_level in reversed(laplacian_pyramid[:-1]):
+            reconstructed_image = cv2.pyrUp(reconstructed_image, dstsize=laplacian_level.shape[:2][::-1]).astype(float) + laplacian_level.astype(float)
+        return reconstructed_image
 
-def reconstructFromPyramid( laplacian_pyramid):
-    '''
-    Reconstruct an image from its Laplacian pyramid.
-    '''
-    reconstructed_image = laplacian_pyramid[-1]
-    for laplacian_level in reversed(laplacian_pyramid[:-1]):
-        reconstructed_image = cv2.pyrUp(reconstructed_image, dstsize=laplacian_level.shape[:2][::-1]).astype(float) + laplacian_level.astype(float)
-    return reconstructed_image
+    def generateMaskFromImage(self, image):
+        '''
+        Generate a mask based on the non-zero regions of the image.
+        '''
+        mask = np.all(image != 0, axis=2)
+        mask_image = np.zeros(image.shape[:2], dtype=float)
+        mask_image[mask] = 1.0
+        return mask_image
 
-def generateMaskFromImage( image):
-    '''
-    Generate a mask based on the non-zero regions of the image.
-    '''
-    mask = np.all(image != 0, axis=2)
-    mask_image = np.zeros(image.shape[:2], dtype=float)
-    mask_image[mask] = 1.0
-    return mask_image
+    def blendImages(self, image1, image2):
+        '''
+        Blend two images using Laplacian pyramids and a Gaussian mask.
+        '''
+        laplacian1 = self.getLaplacianPyramid(image1)
+        laplacian2 = self.getLaplacianPyramid(image2)
 
-def blendImages( image1, image2):
-    '''
-    Blend two images using Laplacian pyramids and a Gaussian mask.
-    '''
-    laplacian1 = getLaplacianPyramid(image1)
-    laplacian2 = getLaplacianPyramid(image2)
+        mask1 = self.generateMaskFromImage(image1).astype(np.bool_)
+        mask2 = self.generateMaskFromImage(image2).astype(np.bool_)
+        
+        overlap_region = mask1 & mask2
 
-    mask1 = generateMaskFromImage(image1).astype(np.bool_)
-    mask2 = generateMaskFromImage(image2).astype(np.bool_)
-    
-    overlap_region = mask1 & mask2
+        y_coords, x_coords = np.where(overlap_region)
+        min_x, max_x = np.min(x_coords), np.max(x_coords)
 
-    y_coords, x_coords = np.where(overlap_region)
-    min_x, max_x = np.min(x_coords), np.max(x_coords)
+        final_mask = np.zeros(image1.shape[:2])
+        final_mask[:, :(min_x + max_x)//2] = 1.0
 
-    final_mask = np.zeros(image1.shape[:2])
-    final_mask[:, :(min_x + max_x)//2] = 1.0
+        gaussian_mask_pyramid = self.getGaussianPyramid(final_mask)
 
-    gaussian_mask_pyramid = getGaussianPyramid(final_mask)
+        blended_pyramid = self.getBlendingPyramid(laplacian1, laplacian2, gaussian_mask_pyramid)
 
-    blended_pyramid = getBlendingPyramid(laplacian1, laplacian2, gaussian_mask_pyramid)
+        blended_image = self.reconstructFromPyramid(blended_pyramid)
 
-    blended_image = reconstructFromPyramid(blended_pyramid)
-
-    return blended_image, mask1, mask2
+        return blended_image
 
 def computeBoundingBoxOfWarpedImage(homography_matrix, img_width, img_height):
     """
