@@ -75,9 +75,11 @@ class PanaromaStitcher():
         # Return Final panaroma
         stitched_image = cv2.imread(self.all_images[0])
         stitched_image, Hom = self.stitch_and_save_images_opencv(1, 0, Hom)
+        print(0)
         homography_matrix_list.append(Hom)
         for i in range(2,len(self.all_images)-1):
             warp,Hom=self.stitch_and_save_images_opencv(i, i-1, Hom)
+            print(i-1)
             homography_matrix_list.append(Hom)
             stitched_image = b.blendImages(stitched_image, warp)
         Hom = np.eye(3)
