@@ -3,8 +3,7 @@ import numpy as np
 import glob
 import cv2
 import os
-from src.JohnDoe.some_function import *
-from src.JohnDoe.some_folder import folder_func
+from src.JohnDoe.some_function import blendImages,detectFeaturesAndMatch,warpAndPlaceSourceImage
 
 def Homography_opencv(correspondences, trials=1000, threshold=10, num_samples=4):
     srcPoints = np.float32([point[0] for point in correspondences])
