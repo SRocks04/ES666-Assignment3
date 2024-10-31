@@ -71,7 +71,7 @@ class PanaromaStitcher():
         self.trials = 3000
         self.offset = [2300, 800]
         Hom = np.eye(3)
-        print(-1)
+        print('bla bla bla')
         b = ImageBlenderWithPyramids()
         # Return Final panaroma
         stitched_image = cv2.imread(self.all_images[0])
@@ -80,7 +80,7 @@ class PanaromaStitcher():
         homography_matrix_list.append(Hom)
         for i in range(2,len(self.all_images)-1):
             warp,Hom=self.stitch_and_save_images_opencv(i, i-1, Hom)
-            print(i-1)
+            print(f'step{i-1}')
             homography_matrix_list.append(Hom)
             stitched_image = b.blendImages(stitched_image, warp)
         Hom = np.eye(3)

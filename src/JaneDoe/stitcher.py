@@ -21,7 +21,6 @@ class PanaromaStitcher():
         self.do_something()
         self.do_something_more()
 
-        some_function.some_func()
         folder_func.foo()
 
         # Collect all homographies calculated for pair of images and return
