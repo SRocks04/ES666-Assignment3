@@ -33,8 +33,8 @@ class PanaromaStitcher():
         warped_image = np.zeros((3000, 6000, 3), dtype=np.uint8)
 
         # Read source and destination images
-        src_img = cv2.imread(self.all_images[src_idx])
-        dest_img = cv2.imread(self.all_images[dest_idx])
+        src_img = cv2.imread(self.all_images[src_idx]).copy
+        dest_img = cv2.imread(self.all_images[dest_idx]).copy
 
         print(f'Original image size = {src_img.shape}')
 
@@ -74,7 +74,6 @@ class PanaromaStitcher():
         print('bla bla bla')
         b = ImageBlenderWithPyramids()
         # Return Final panaroma
-        stitched_image = cv2.imread(self.all_images[0])
         stitched_image, Hom = self.stitch_and_save_images_opencv(1, 0, Hom)
         print(0)
         homography_matrix_list.append(Hom)
